@@ -6,41 +6,43 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v3
+      
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-          cache: 'npm'
-
+      
       - name: Install dependencies
         run: |
           npm install
-          if [ $? -ne 0 ]; then
-            echo "Failed to install dependencies"
-            exit 1
-          fi
-
-      - name: Build and Export
-        run: |
-          npm run build
-          if [ $? -ne 0 ]; then
-            echo "Build failed"
-            exit 1
-          fi
-          touch out/.nojekyll
-
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
+          npm ci
+      
+      - name: Build
+        run: npm run build
+        
+      - name: Create .nojekyll file
+        run: touch out/.nojekyll
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: out
-          branch: gh-pages
-          clean: true
+          path: ./out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
